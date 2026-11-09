@@ -5,6 +5,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import { env, isProduction } from './config/env';
+import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 import { errorHandler, notFound } from './middleware/error';
 import { sanitizeRequest } from './middleware/sanitize';
@@ -25,11 +26,34 @@ import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
 import { sendSuccess } from './utils/response';
 
-export function createApp(): Application {
+interface CreateAppOptions {
+  /**
+   * Serverless runtimes must await a MongoDB connection before handling a
+   * request. Long-running local servers call connectDB() during bootstrap.
+   */
+  awaitDatabase?: boolean;
+}
+
+export function createApp(options: CreateAppOptions = {}): Application {
   const app = express();
 
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
+
+  if (options.awaitDatabase) {
+    app.use(async (req, _res, next) => {
+      if (req.method === 'OPTIONS' || req.path === '/api/health') {
+        next();
+        return;
+      }
+      try {
+        await connectDB();
+        next();
+      } catch (error) {
+        next(error);
+      }
+    });
+  }
 
   app.use(
     helmet({

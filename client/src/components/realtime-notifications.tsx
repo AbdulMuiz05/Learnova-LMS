@@ -15,13 +15,17 @@ interface NotificationEvent {
   unreadCount: number;
 }
 
+// Socket.IO needs a long-lived server. Set this to "false" when the API runs on
+// Vercel Functions; persisted notifications remain available through the API.
+const REALTIME_ENABLED = process.env.NEXT_PUBLIC_REALTIME_ENABLED !== 'false';
+
 export function RealtimeNotifications() {
   const { isAuthenticated, user } = useAuth();
   const dispatch = useAppDispatch();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || !REALTIME_ENABLED) return;
 
     const socket = io(SOCKET_URL, {
       withCredentials: true,

@@ -1,10 +1,16 @@
 import path from 'path';
+import fs from 'fs';
 import nodemailer, { Transporter } from 'nodemailer';
 import ejs from 'ejs';
 import { env } from './env';
 import { logger } from '../utils/logger';
 
-const templatesDir = path.join(__dirname, '..', 'templates', 'emails');
+const templateCandidates = [
+  path.join(__dirname, '..', 'templates', 'emails'),
+  path.join(process.cwd(), 'src', 'templates', 'emails'),
+  path.join(process.cwd(), 'dist', 'templates', 'emails'),
+];
+const templatesDir = templateCandidates.find((dir) => fs.existsSync(dir)) ?? templateCandidates[0];
 const smtpConfigured = Boolean(env.SMTP_HOST);
 
 let transporter: Transporter | null = null;

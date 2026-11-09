@@ -358,6 +358,33 @@ async function main() {
   const afterLogout = await student.request('/auth/me');
   check('Logout clears the session', logout.status === 200 && afterLogout.status === 401);
 
+  const { default: serverlessApp } = await import('../../api/index');
+  const serverlessServer = http.createServer(serverlessApp);
+  await new Promise<void>((resolve) => serverlessServer.listen(0, '127.0.0.1', resolve));
+  const serverlessAddress = serverlessServer.address();
+  const serverlessPort =
+    typeof serverlessAddress === 'object' && serverlessAddress ? serverlessAddress.port : 0;
+  const serverlessBase = `http://127.0.0.1:${serverlessPort}`;
+
+  const serverlessHealth = await fetch(`${serverlessBase}/api/health`);
+  const serverlessHealthBody: any = await serverlessHealth.json();
+  check(
+    'Vercel entry serves the health route',
+    serverlessHealth.status === 200 && serverlessHealthBody.data?.status === 'ok'
+  );
+
+  const serverlessLogin = await fetch(`${serverlessBase}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@test.local', password: 'Admin@12345' }),
+  });
+  const serverlessLoginBody: any = await serverlessLogin.json();
+  check(
+    'Vercel entry awaits MongoDB and preserves auth middleware',
+    serverlessLogin.status === 200 && serverlessLoginBody.data?.user?.role === 'admin'
+  );
+  await new Promise<void>((resolve) => serverlessServer.close(() => resolve()));
+
   console.log(`\n${passed} passed, ${failed} failed`);
 
   server.close();
